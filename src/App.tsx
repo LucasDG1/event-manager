@@ -169,19 +169,24 @@ export default function App() {
       );
     }
 
+    const baseUrl = window.location.origin;
+
     switch (appState) {
       case 'events':
         return (
           <>
             <Helmet>
-              <title>Event Manager - Ontdek en Boek Fantastische Events</title>
+              <title>Event Manager - Ontdek en Boek Fantastische Events in Nederland</title>
               <meta
                 name="description"
-                content="Ontdek en boek de beste events in Nederland. Veilig en eenvoudig tickets boeken."
+                content="Ontdek en boek de beste events in Nederland. Concerten, festivals, workshops en meer. Veilig en eenvoudig online tickets boeken met directe bevestiging."
               />
+              <link rel="canonical" href={`${baseUrl}/`} />
               <meta property="og:title" content="Event Manager - Ontdek en Boek Fantastische Events" />
-              <meta property="og:description" content="Ontdek en boek de beste events in Nederland." />
-              <meta property="og:image" content="https://example.com/default-og-image.jpg" />
+              <meta property="og:description" content="Ontdek en boek de beste events in Nederland. Veilig en eenvoudig tickets boeken." />
+              <meta property="og:image" content={`${baseUrl}/default-og-image.jpg`} />
+              <meta property="og:url" content={`${baseUrl}/`} />
+              <meta property="og:type" content="website" />
             </Helmet>
             <EventsOverview events={events} onEventClick={handleEventClick} />
           </>
@@ -191,11 +196,14 @@ export default function App() {
         return selectedEvent ? (
           <>
             <Helmet>
-              <title>{`${selectedEvent.title} - Event Manager`}</title>
-              <meta name="description" content={selectedEvent.description} />
+              <title>{`${selectedEvent.title} - Tickets Boeken | Event Manager`}</title>
+              <meta name="description" content={`${selectedEvent.description.substring(0, 155)}... Boek nu je tickets voor ${selectedEvent.title} op ${new Date(selectedEvent.startDate).toLocaleDateString('nl-NL')}.`} />
+              <link rel="canonical" href={`${baseUrl}/event/${selectedEvent.id}`} />
               <meta property="og:title" content={selectedEvent.title} />
               <meta property="og:description" content={selectedEvent.description} />
               <meta property="og:image" content={selectedEvent.image} />
+              <meta property="og:url" content={`${baseUrl}/event/${selectedEvent.id}`} />
+              <meta property="og:type" content="event" />
             </Helmet>
             <EventDetail
               event={selectedEvent}
@@ -212,11 +220,14 @@ export default function App() {
         return (
           <>
             <Helmet>
-              <title>Over Ons - Event Manager</title>
+              <title>Over Ons - Event Manager | Jouw Partner in Event Management</title>
               <meta
                 name="description"
-                content="Event Manager maakt event management eenvoudig, efficiënt en toegankelijk. Ontdek onze missie, waarden en het team achter het platform."
+                content="Event Manager maakt event management eenvoudig, efficiënt en toegankelijk. Ontdek onze missie, waarden en het team achter het platform dat duizenden events organiseert."
               />
+              <link rel="canonical" href={`${baseUrl}/about`} />
+              <meta property="og:title" content="Over Ons - Event Manager" />
+              <meta property="og:url" content={`${baseUrl}/about`} />
             </Helmet>
             <AboutPage />
           </>
@@ -226,11 +237,14 @@ export default function App() {
         return (
           <>
             <Helmet>
-              <title>Contact - Event Manager</title>
+              <title>Contact - Event Manager | Neem Contact Op</title>
               <meta
                 name="description"
-                content="Neem contact op met Event Manager. We helpen je graag met vragen over events, tickets, boekingen en ons platform."
+                content="Neem contact op met Event Manager. We helpen je graag met vragen over events, tickets, boekingen en ons platform. Bereikbaar via telefoon, email en contactformulier."
               />
+              <link rel="canonical" href={`${baseUrl}/contact`} />
+              <meta property="og:title" content="Contact - Event Manager" />
+              <meta property="og:url" content={`${baseUrl}/contact`} />
             </Helmet>
             <ContactPage onNavigate={handleNavigate} />
           </>
@@ -240,11 +254,14 @@ export default function App() {
         return (
           <>
             <Helmet>
-              <title>Privacy Beleid - Event Manager</title>
+              <title>Privacy Beleid - Event Manager | AVG/GDPR Compliant</title>
               <meta
                 name="description"
-                content="Lees ons privacy beleid en ontdek hoe Event Manager jouw persoonlijke gegevens beschermt volgens de AVG/GDPR wetgeving."
+                content="Lees ons privacy beleid en ontdek hoe Event Manager jouw persoonlijke gegevens beschermt volgens de AVG/GDPR wetgeving. Transparant en veilig."
               />
+              <link rel="canonical" href={`${baseUrl}/privacy`} />
+              <meta property="og:title" content="Privacy Beleid - Event Manager" />
+              <meta property="og:url" content={`${baseUrl}/privacy`} />
             </Helmet>
             <PrivacyPage />
           </>
@@ -254,11 +271,14 @@ export default function App() {
         return (
           <>
             <Helmet>
-              <title>Algemene Voorwaarden - Event Manager</title>
+              <title>Algemene Voorwaarden - Event Manager | Terms of Service</title>
               <meta
                 name="description"
-                content="Lees de algemene voorwaarden van Event Manager voor het gebruik van ons platform en het boeken van tickets."
+                content="Lees de algemene voorwaarden van Event Manager voor het gebruik van ons platform en het boeken van tickets. Duidelijke afspraken en voorwaarden."
               />
+              <link rel="canonical" href={`${baseUrl}/terms`} />
+              <meta property="og:title" content="Algemene Voorwaarden - Event Manager" />
+              <meta property="og:url" content={`${baseUrl}/terms`} />
             </Helmet>
             <TermsPage />
           </>
@@ -268,11 +288,15 @@ export default function App() {
         return currentUser ? (
           <>
             <Helmet>
-              <title>Mijn Tickets - Event Manager</title>
+              <title>Mijn Tickets - Event Manager | Beheer Je Boekingen</title>
               <meta
                 name="description"
-                content="Bekijk en beheer al je geboekte tickets. Download QR codes, retourneer tickets en bekijk event details."
+                content="Bekijk en beheer al je geboekte tickets bij Event Manager. Download QR codes, retourneer tickets en bekijk event details van al je boekingen."
               />
+              <link rel="canonical" href={`${baseUrl}/my-tickets`} />
+              <meta property="og:title" content="Mijn Tickets - Event Manager" />
+              <meta property="og:url" content={`${baseUrl}/my-tickets`} />
+              <meta name="robots" content="noindex, nofollow" />
             </Helmet>
             <MyTicketsPage user={currentUser} events={events} onBack={() => setAppState('events')} onRefreshEvents={() => {}} />
           </>
