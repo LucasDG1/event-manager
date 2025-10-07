@@ -9,10 +9,10 @@ const app = express();
 
 // Security headers middleware
 app.use((req, res, next) => {
-  res.setHeader(
-    "Content-Security-Policy",
-    "default-src 'self'; \
-         script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; \
+    res.setHeader(
+        "Content-Security-Policy",
+        "default-src 'self'; \
+         script-src 'self' https://cdn.jsdelivr.net https://unpkg.com; \
          style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
          img-src 'self' data: blob: https: http: https://images.unsplash.com; \
          font-src 'self' data: https://fonts.gstatic.com; \
@@ -21,7 +21,7 @@ app.use((req, res, next) => {
          base-uri 'self'; \
          form-action 'self'; \
          upgrade-insecure-requests;"
-  );
+      );
 
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-Content-Type-Options", "nosniff");
