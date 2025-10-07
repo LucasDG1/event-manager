@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
+import { SecurityBadge } from './SecurityBadge';
 import { CalendarDays, Users, Target, Award, Heart, Zap } from 'lucide-react';
 
 export function AboutPage() {
@@ -190,6 +191,11 @@ export function AboutPage() {
               </CardContent>
             </Card>
           </div>
+        </div>
+
+        {/* Security Section */}
+        <div className="mb-16">
+          <SecurityBadge variant="detailed" className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-1000" />
         </div>
 
         {/* Contact CTA */}

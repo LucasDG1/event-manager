@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
+import { SecurityBadge } from './SecurityBadge';
 import { Shield, Lock, Eye, UserCheck, FileText, Mail } from 'lucide-react';
 
 export function PrivacyPage() {
@@ -19,7 +20,7 @@ export function PrivacyPage() {
               Jouw privacy is belangrijk voor ons. Hier leggen we uit hoe we je gegevens gebruiken en beschermen.
             </p>
             <Badge variant="secondary" className="mt-4 bg-white/20 text-white border-white/30">
-              Laatst bijgewerkt: 26 september 2025
+              Laatst bijgewerkt: 7 oktober 2025
             </Badge>
           </div>
         </div>
@@ -145,13 +146,23 @@ export function PrivacyPage() {
 
           <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-700 delay-700">
             <CardHeader>
-              <CardTitle>4. Hoe beschermen we je gegevens?</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="text-green-600" />
+                4. Hoe beschermen we je gegevens?
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              <SecurityBadge variant="detailed" />
+              
               <div>
                 <h4 className="font-medium mb-2">Technische beveiliging</h4>
                 <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
                   <li>SSL/TLS encryptie voor alle datatransmissie</li>
+                  <li>Content Security Policy (CSP) tegen XSS-aanvallen</li>
+                  <li>X-Frame-Options tegen clickjacking</li>
+                  <li>Strict Transport Security (HSTS) voor HTTPS</li>
+                  <li>Referrer Policy voor privacy bescherming</li>
+                  <li>Permissions Policy voor browser feature controle</li>
                   <li>Regelmatige beveiligingsupdates en patches</li>
                   <li>Beperkte toegang tot persoonlijke gegevens</li>
                   <li>Regelmatige beveiligingsaudits</li>
@@ -164,7 +175,14 @@ export function PrivacyPage() {
                   <li>Privacy training voor alle medewerkers</li>
                   <li>Strikte toegangscontroles</li>
                   <li>Incident response procedures</li>
+                  <li>Regelmatige security audits</li>
                 </ul>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm text-blue-800">
+                  <strong>Security Headers Status:</strong> Alle industriestandaard beveiligingsheaders zijn actief en correct geconfigureerd om je data te beschermen tegen moderne web-aanvallen.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -253,7 +271,7 @@ export function PrivacyPage() {
 
         {/* Last Updated */}
         <div className="mt-12 text-center text-sm text-muted-foreground animate-in fade-in-0 duration-700 delay-1100">
-          <p>Dit privacy beleid is voor het laatst bijgewerkt op 26 september 2025.</p>
+          <p>Dit privacy beleid is voor het laatst bijgewerkt op 7 oktober 2025.</p>
           <p>We kunnen dit beleid van tijd tot tijd aanpassen. Wijzigingen worden op deze pagina gepubliceerd.</p>
         </div>
       </div>

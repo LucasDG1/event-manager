@@ -1,16 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { CalendarDays, Menu, X, Home, Info, Phone, Shield, FileText, LogOut, User } from 'lucide-react';
+import { CalendarDays, Menu, X, Home, Info, Phone, Shield, FileText, LogOut, User, Ticket } from 'lucide-react';
+import type { User as UserType } from '../types';
 
 interface NavigationProps {
   currentPage: string;
-  onNavigate: (page: 'events' | 'about' | 'contact' | 'privacy' | 'terms' | 'login') => void;
-  isAdmin?: boolean;
+  onNavigate: (page: 'events' | 'about' | 'contact' | 'privacy' | 'terms' | 'auth' | 'adminAuth' | 'myTickets') => void;
+  currentUser?: UserType | null;
   onLogout?: () => void;
 }
 
-export function Navigation({ currentPage, onNavigate, isAdmin, onLogout }: NavigationProps) {
+export function Navigation({ currentPage, onNavigate, currentUser, onLogout }: NavigationProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isAdmin = currentUser?.role === 'admin';
 
   // Close mobile menu when page changes
   useEffect(() => {
@@ -47,7 +49,7 @@ export function Navigation({ currentPage, onNavigate, isAdmin, onLogout }: Navig
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const handleNavigate = (page: 'events' | 'about' | 'contact' | 'privacy' | 'terms' | 'login') => {
+  const handleNavigate = (page: 'events' | 'about' | 'contact' | 'privacy' | 'terms' | 'auth' | 'adminAuth' | 'myTickets') => {
     onNavigate(page);
     setIsMobileMenuOpen(false);
   };
@@ -56,8 +58,6 @@ export function Navigation({ currentPage, onNavigate, isAdmin, onLogout }: Navig
     { key: 'events', label: 'Events', icon: Home },
     { key: 'about', label: 'Over Ons', icon: Info },
     { key: 'contact', label: 'Contact', icon: Phone },
-    { key: 'privacy', label: 'Privacy', icon: Shield },
-    { key: 'terms', label: 'Voorwaarden', icon: FileText },
   ];
 
   return (
@@ -91,14 +91,36 @@ export function Navigation({ currentPage, onNavigate, isAdmin, onLogout }: Navig
                     {item.label}
                   </Button>
                 ))}
-                <Button
-                  variant={currentPage === 'login' ? 'default' : 'outline'}
-                  onClick={() => handleNavigate('login')}
-                  className="ml-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 transition-all duration-200 hover:scale-105"
-                >
-                  <User size={16} className="mr-2" />
-                  Admin
-                </Button>
+                
+                {currentUser && currentUser.role === 'user' ? (
+                  <>
+                    <Button
+                      variant={currentPage === 'myTickets' ? 'default' : 'ghost'}
+                      onClick={() => handleNavigate('myTickets')}
+                      className="transition-all duration-200 hover:scale-105"
+                    >
+                      <Ticket size={16} className="mr-2" />
+                      Mijn Tickets
+                    </Button>
+                    <Button 
+                      onClick={onLogout} 
+                      variant="ghost"
+                      className="transition-all duration-200 hover:scale-105"
+                    >
+                      <LogOut size={16} className="mr-2" />
+                      Uitloggen
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant={currentPage === 'auth' ? 'default' : 'outline'}
+                    onClick={() => handleNavigate('auth')}
+                    className="ml-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 transition-all duration-200 hover:scale-105"
+                  >
+                    <User size={16} className="mr-2" />
+                    Inloggen
+                  </Button>
+                )}
               </>
             ) : (
               <Button 
@@ -147,44 +169,113 @@ export function Navigation({ currentPage, onNavigate, isAdmin, onLogout }: Navig
 
       {/* Mobile Menu */}
       <div 
-        className={`md:hidden fixed left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-lg transition-all duration-300 transform ${
+        className={`md:hidden fixed left-0 right-0 bg-white border-b border-gray-200 shadow-lg transition-all duration-300 ease-in-out transform z-40 ${
           isMobileMenuOpen 
-            ? 'translate-y-0 opacity-100' 
-            : '-translate-y-full opacity-0'
+            ? 'translate-y-0 opacity-100 pointer-events-auto' 
+            : '-translate-y-full opacity-0 pointer-events-none'
         }`}
-        style={{ top: '64px' }}
+        style={{ top: '64px', maxHeight: 'calc(100vh - 64px)', overflowY: 'auto' }}
       >
         <div className="px-4 py-6 space-y-2">
           {!isAdmin ? (
             <>
               {navigationItems.map((item, index) => (
-                <Button
+                <div
                   key={item.key}
-                  variant={currentPage === item.key ? 'default' : 'ghost'}
-                  onClick={() => handleNavigate(item.key as any)}
-                  className={`w-full justify-start text-left transition-all duration-200 hover:scale-[1.02] animate-in slide-in-from-left-4`}
-                  style={{ animationDelay: `${index * 50}ms` }}
+                  className={`transition-all duration-300 ${
+                    isMobileMenuOpen 
+                      ? 'translate-x-0 opacity-100' 
+                      : '-translate-x-8 opacity-0'
+                  }`}
+                  style={{ 
+                    transitionDelay: isMobileMenuOpen ? `${index * 70}ms` : '0ms' 
+                  }}
                 >
-                  <item.icon size={18} className="mr-3" />
-                  {item.label}
-                </Button>
+                  <Button
+                    variant={currentPage === item.key ? 'default' : 'ghost'}
+                    onClick={() => handleNavigate(item.key as any)}
+                    className="w-full justify-start text-left transition-all duration-200 hover:scale-[1.02]"
+                  >
+                    <item.icon size={18} className="mr-3" />
+                    {item.label}
+                  </Button>
+                </div>
               ))}
               
-              <div className="pt-4 border-t border-gray-200">
-                <Button
-                  variant={currentPage === 'login' ? 'default' : 'outline'}
-                  onClick={() => handleNavigate('login')}
-                  className="w-full justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 transition-all duration-200 hover:scale-[1.02] animate-in slide-in-from-left-4"
-                  style={{ animationDelay: `${navigationItems.length * 50}ms` }}
-                >
-                  <User size={18} className="mr-3" />
-                  Admin Login
-                </Button>
+              <div className="pt-4 border-t border-gray-200 space-y-2">
+                {currentUser && currentUser.role === 'user' ? (
+                  <>
+                    <div
+                      className={`transition-all duration-300 ${
+                        isMobileMenuOpen 
+                          ? 'translate-x-0 opacity-100' 
+                          : '-translate-x-8 opacity-0'
+                      }`}
+                      style={{ 
+                        transitionDelay: isMobileMenuOpen ? `${navigationItems.length * 70}ms` : '0ms' 
+                      }}
+                    >
+                      <Button
+                        variant={currentPage === 'myTickets' ? 'default' : 'ghost'}
+                        onClick={() => handleNavigate('myTickets')}
+                        className="w-full justify-start transition-all duration-200 hover:scale-[1.02]"
+                      >
+                        <Ticket size={18} className="mr-3" />
+                        Mijn Tickets
+                      </Button>
+                    </div>
+                    <div
+                      className={`transition-all duration-300 ${
+                        isMobileMenuOpen 
+                          ? 'translate-x-0 opacity-100' 
+                          : '-translate-x-8 opacity-0'
+                      }`}
+                      style={{ 
+                        transitionDelay: isMobileMenuOpen ? `${(navigationItems.length + 1) * 70}ms` : '0ms' 
+                      }}
+                    >
+                      <Button 
+                        onClick={onLogout} 
+                        variant="ghost"
+                        className="w-full justify-start transition-all duration-200 hover:scale-[1.02]"
+                      >
+                        <LogOut size={18} className="mr-3" />
+                        Uitloggen
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div
+                    className={`transition-all duration-300 ${
+                      isMobileMenuOpen 
+                        ? 'translate-x-0 opacity-100' 
+                        : '-translate-x-8 opacity-0'
+                    }`}
+                    style={{ 
+                      transitionDelay: isMobileMenuOpen ? `${navigationItems.length * 70}ms` : '0ms' 
+                    }}
+                  >
+                    <Button
+                      variant={currentPage === 'auth' ? 'default' : 'outline'}
+                      onClick={() => handleNavigate('auth')}
+                      className="w-full justify-start bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white border-0 transition-all duration-200 hover:scale-[1.02]"
+                    >
+                      <User size={18} className="mr-3" />
+                      Inloggen
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
           ) : (
             <div className="space-y-4">
-              <div className="flex items-center px-3 py-2 bg-blue-50 rounded-lg animate-in slide-in-from-left-4">
+              <div
+                className={`flex items-center px-3 py-2 bg-blue-50 rounded-lg transition-all duration-300 ${
+                  isMobileMenuOpen 
+                    ? 'translate-x-0 opacity-100' 
+                    : '-translate-x-8 opacity-0'
+                }`}
+              >
                 <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
                   <User className="text-white" size={18} />
                 </div>
@@ -194,15 +285,23 @@ export function Navigation({ currentPage, onNavigate, isAdmin, onLogout }: Navig
                 </div>
               </div>
               
-              <Button 
-                onClick={onLogout} 
-                variant="outline"
-                className="w-full justify-start hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all duration-200 hover:scale-[1.02] animate-in slide-in-from-left-4"
-                style={{ animationDelay: '100ms' }}
+              <div
+                className={`transition-all duration-300 ${
+                  isMobileMenuOpen 
+                    ? 'translate-x-0 opacity-100' 
+                    : '-translate-x-8 opacity-0'
+                }`}
+                style={{ transitionDelay: isMobileMenuOpen ? '100ms' : '0ms' }}
               >
-                <LogOut size={18} className="mr-3" />
-                Uitloggen
-              </Button>
+                <Button 
+                  onClick={onLogout} 
+                  variant="outline"
+                  className="w-full justify-start hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-all duration-200 hover:scale-[1.02]"
+                >
+                  <LogOut size={18} className="mr-3" />
+                  Uitloggen
+                </Button>
+              </div>
             </div>
           )}
         </div>

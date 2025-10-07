@@ -1,0 +1,33 @@
+# Event Manager - Robots.txt
+
+# Allow all crawlers
+User-agent: *
+Allow: /
+
+# Disallow admin and auth pages
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /login/
+Disallow: /api/
+
+# Specific rules for major crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Crawl-delay for all bots (optional, in seconds)
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://eventmanager.nl/sitemap.xml
+
+# Security
+User-agent: *
+Disallow: /private/
+Disallow: /.git/
+Disallow: /node_modules/

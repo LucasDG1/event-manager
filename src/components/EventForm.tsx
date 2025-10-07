@@ -109,6 +109,7 @@ export function EventForm({ event, onSubmit, onCancel }: EventFormProps) {
       onSubmit({
         ...formData,
         startDate: new Date(formData.startDate).toISOString(),
+        startTime: new Date(formData.startDate).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }),
         endDate: formData.endDate ? new Date(formData.endDate).toISOString() : undefined
       });
     } catch (error) {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -16,11 +16,17 @@ import {
   Search,
   Filter,
   Download,
-  Eye
+  Eye,
+  Ticket,
+  Euro,
+  TrendingUp,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { EventForm } from './EventForm';
-import type { Event, Booking } from '../types';
+import { statisticsApi, usedTicketsApi, adminCreatorApi } from '../services/api';
+import type { Event, Booking, Ticket, User } from '../types';
 
 interface AdminDashboardProps {
   events: Event[];
@@ -43,11 +49,108 @@ export function AdminDashboard({
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTab, setSelectedTab] = useState('events');
+  const [statistics, setStatistics] = useState<{
+    totalEvents: number;
+    totalBookings: number;
+    totalTicketsSold: number;
+    totalRevenue: number;
+    eventStats: Record<string, { ticketsSold: number; ticketsUsed?: number; revenue: number; bookingCount: number }>;
+  } | null>(null);
+  const [usedTickets, setUsedTickets] = useState<any[]>([]);
+  const [creators, setCreators] = useState<User[]>([]);
+  const [pendingEvents, setPendingEvents] = useState<Event[]>([]);
 
-  const totalEvents = events.length;
-  const totalBookings = bookings.reduce((sum, booking) => sum + booking.ticketCount, 0);
+  // Load statistics and used tickets on component mount and when data changes
+  useEffect(() => {
+    loadStatistics();
+    loadUsedTickets();
+    loadCreators();
+    loadPendingEvents();
+  }, [events, bookings]);
+
+  const loadStatistics = async () => {
+    try {
+      const stats = await statisticsApi.get();
+      setStatistics(stats);
+    } catch (error) {
+      console.error('Error loading statistics:', error);
+      // Fallback to local calculation if API fails
+      const totalEvents = events.length;
+      const totalTicketsSold = bookings.reduce((sum, booking) => sum + booking.ticketCount, 0);
+      const upcomingEvents = events.filter(event => !event.isPast).length;
+      const totalRevenue = bookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
+      
+      setStatistics({
+        totalEvents,
+        totalBookings: bookings.length,
+        totalTicketsSold,
+        totalRevenue,
+        eventStats: {}
+      });
+    }
+  };
+
+  const loadUsedTickets = async () => {
+    try {
+      const tickets = await usedTicketsApi.getAll();
+      setUsedTickets(tickets);
+    } catch (error) {
+      console.error('Error loading used tickets:', error);
+      setUsedTickets([]);
+    }
+  };
+
+  const loadCreators = async () => {
+    try {
+      const creatorsData = await adminCreatorApi.getAllCreators();
+      setCreators(creatorsData);
+    } catch (error) {
+      console.error('Error loading creators:', error);
+      setCreators([]);
+    }
+  };
+
+  const loadPendingEvents = async () => {
+    try {
+      const pending = await adminCreatorApi.getPendingEvents();
+      setPendingEvents(pending);
+    } catch (error) {
+      console.error('Error loading pending events:', error);
+      setPendingEvents([]);
+    }
+  };
+
+  const handleApproveEvent = async (eventId: string) => {
+    try {
+      const approvedEvent = await adminCreatorApi.approveEvent(eventId);
+      onUpdateEvent(eventId, approvedEvent);
+      await loadPendingEvents();
+      toast.success('Event goedgekeurd!');
+    } catch (error) {
+      console.error('Error approving event:', error);
+      toast.error('Kon event niet goedkeuren');
+    }
+  };
+
+  const handleRejectEvent = async (eventId: string) => {
+    const reason = prompt('Reden voor afwijzing:');
+    if (!reason) return;
+
+    try {
+      const rejectedEvent = await adminCreatorApi.rejectEvent(eventId, reason);
+      onUpdateEvent(eventId, rejectedEvent);
+      await loadPendingEvents();
+      toast.success('Event afgewezen');
+    } catch (error) {
+      console.error('Error rejecting event:', error);
+      toast.error('Kon event niet afwijzen');
+    }
+  };
+
+  const totalEvents = statistics?.totalEvents || events.length;
+  const totalTicketsSold = statistics?.totalTicketsSold || bookings.reduce((sum, booking) => sum + booking.ticketCount, 0);
   const upcomingEvents = events.filter(event => !event.isPast).length;
-  const totalRevenue = bookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
+  const totalRevenue = statistics?.totalRevenue || bookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
 
   const filteredEvents = events.filter(event =>
     event.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -55,10 +158,16 @@ export function AdminDashboard({
   );
 
   const filteredBookings = bookings.filter(booking => {
+    if (!booking) return false;
+    
     const event = events.find(e => e.id === booking.eventId);
-    return booking.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           booking.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           event?.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const customerName = booking.customerName || '';
+    const customerEmail = booking.customerEmail || '';
+    const eventTitle = event?.title || '';
+    
+    return customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           customerEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           eventTitle.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   const handleCreateEvent = (eventData: Omit<Event, 'id' | 'isPast'>) => {
@@ -165,11 +274,11 @@ export function AdminDashboard({
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Totaal Boekingen</p>
-                  <p className="text-3xl">{totalBookings}</p>
-                  <p className="text-xs text-blue-600">{bookings.length} reserveringen</p>
+                  <p className="text-sm text-muted-foreground">Verkochte Tickets</p>
+                  <p className="text-3xl">{totalTicketsSold}</p>
+                  <p className="text-xs text-blue-600">{bookings.length} boekingen</p>
                 </div>
-                <Users className="h-8 w-8 text-green-600" />
+                <Ticket className="h-8 w-8 text-green-600" />
               </div>
             </CardContent>
           </Card>
@@ -178,26 +287,26 @@ export function AdminDashboard({
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Geschatte Omzet</p>
+                  <p className="text-sm text-muted-foreground">Totale Omzet</p>
                   <p className="text-3xl">€{totalRevenue.toLocaleString()}</p>
-                  <p className="text-xs text-purple-600">Dit jaar</p>
+                  <p className="text-xs text-purple-600">Alle verkopen</p>
                 </div>
-                <BarChart3 className="h-8 w-8 text-purple-600" />
+                <Euro className="h-8 w-8 text-purple-600" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-400">
+          <Card className="animate-in fade-in-0 slide-in-from-bottom-4 duration-500 delay-400 bg-orange-50 border-orange-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Bezettingsgraad</p>
-                  <p className="text-3xl">
-                    {totalEvents > 0 ? Math.round((totalBookings / (events.reduce((sum, e) => sum + e.totalPlaces, 0))) * 100) : 0}%
+                  <p className="text-sm text-orange-700">Gebruikte Tickets</p>
+                  <p className="text-3xl text-orange-900">{usedTickets.length}</p>
+                  <p className="text-xs text-orange-600">
+                    {totalTicketsSold > 0 ? Math.round((usedTickets.length / totalTicketsSold) * 100) : 0}% van verkocht
                   </p>
-                  <p className="text-xs text-orange-600">Gemiddeld</p>
                 </div>
-                <Settings className="h-8 w-8 text-orange-600" />
+                <CheckCircle className="h-8 w-8 text-orange-600" />
               </div>
             </CardContent>
           </Card>
@@ -228,9 +337,12 @@ export function AdminDashboard({
 
         {/* Main Content */}
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="events">Events ({filteredEvents.length})</TabsTrigger>
             <TabsTrigger value="bookings">Boekingen ({filteredBookings.length})</TabsTrigger>
+            <TabsTrigger value="creators">Creators ({pendingEvents.length})</TabsTrigger>
+            <TabsTrigger value="used-tickets">Gebruikt ({usedTickets.length})</TabsTrigger>
+            <TabsTrigger value="statistics">Statistieken</TabsTrigger>
             <TabsTrigger value="settings">Instellingen</TabsTrigger>
           </TabsList>
 
@@ -291,7 +403,7 @@ export function AdminDashboard({
                             {event.description}
                           </p>
                           
-                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 text-sm">
                             <div>
                               <span className="text-muted-foreground">Datum:</span><br />
                               <span className="font-medium">{formatDate(event.startDate)}</span>
@@ -311,6 +423,12 @@ export function AdminDashboard({
                                 <span className="text-xs ml-1">
                                   ({Math.round((event.bookedPlaces / event.totalPlaces) * 100)}%)
                                 </span>
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-muted-foreground">Gebruikt:</span><br />
+                              <span className="font-medium text-orange-600">
+                                {statistics?.eventStats[event.id]?.ticketsUsed || 0} / {event.bookedPlaces}
                               </span>
                               <div className="text-xs text-green-600 mt-1">
                                 €{(event.bookedPlaces * event.price).toFixed(2)} omzet
@@ -382,11 +500,11 @@ export function AdminDashboard({
                           </div>
                           <div>
                             <span className="text-muted-foreground text-sm">Naam:</span><br />
-                            <span className="font-medium">{booking.name}</span>
+                            <span className="font-medium">{booking.customerName}</span>
                           </div>
                           <div>
                             <span className="text-muted-foreground text-sm">E-mail:</span><br />
-                            <span className="font-medium break-all">{booking.email}</span>
+                            <span className="font-medium break-all">{booking.customerEmail}</span>
                           </div>
                           <div>
                             <span className="text-muted-foreground text-sm">Tickets:</span><br />
@@ -406,6 +524,424 @@ export function AdminDashboard({
                   );
                 })
               )}
+            </div>
+          </TabsContent>
+
+          {/* Creators Tab */}
+          <TabsContent value="creators" className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-2xl">Creator Management</h2>
+              <Button 
+                onClick={() => {
+                  loadCreators();
+                  loadPendingEvents();
+                }}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Eye size={16} />
+                Vernieuw
+              </Button>
+            </div>
+            
+            {/* Pending Events Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar size={20} />
+                  Events Ter Goedkeuring ({pendingEvents.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {pendingEvents.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle size={48} className="mx-auto mb-4 opacity-50" />
+                    <p>Geen events in afwachting van goedkeuring</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {pendingEvents.map((event, index) => {
+                      const creator = creators.find(c => c.id === event.creatorId);
+                      return (
+                        <Card 
+                          key={event.id}
+                          className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300"
+                          style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                          <CardContent className="p-6">
+                            <div className="flex flex-col lg:flex-row justify-between items-start gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-2 flex-wrap">
+                                  <h3 className="truncate">{event.title}</h3>
+                                  <Badge variant="outline" className="border-yellow-500 text-yellow-700">
+                                    In Afwachting
+                                  </Badge>
+                                </div>
+                                
+                                <p className="text-muted-foreground mb-3 line-clamp-2">
+                                  {event.description}
+                                </p>
+                                
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
+                                  <div>
+                                    <span className="text-muted-foreground">Creator:</span><br />
+                                    <span className="font-medium">{creator?.name || creator?.email || 'Onbekend'}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Datum:</span><br />
+                                    <span className="font-medium">{formatDate(event.startDate)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Presentator:</span><br />
+                                    <span className="font-medium">{event.presenter}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Prijs:</span><br />
+                                    <span className="font-medium">€{event.price.toFixed(2)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Plaatsen:</span><br />
+                                    <span className="font-medium">{event.totalPlaces}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Aangemaakt:</span><br />
+                                    <span className="font-medium">{formatDate(event.createdAt || event.startDate)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex gap-2 shrink-0">
+                                <Button
+                                  size="sm"
+                                  className="bg-green-600 hover:bg-green-700"
+                                  onClick={() => handleApproveEvent(event.id)}
+                                >
+                                  <CheckCircle size={14} className="mr-1" />
+                                  Goedkeuren
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleRejectEvent(event.id)}
+                                >
+                                  <XCircle size={14} className="mr-1" />
+                                  Afwijzen
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* All Creators Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users size={20} />
+                  Alle Event Creators ({creators.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {creators.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Users size={48} className="mx-auto mb-4 opacity-50" />
+                    <p>Nog geen event creators geregistreerd</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {creators.map((creator, index) => {
+                      const creatorEvents = events.filter(e => e.creatorId === creator.id);
+                      const approvedEvents = creatorEvents.filter(e => e.status === 'approved');
+                      const pendingEventsCount = creatorEvents.filter(e => e.status === 'pending');
+                      const rejectedEventsCount = creatorEvents.filter(e => e.status === 'rejected');
+                      
+                      return (
+                        <Card 
+                          key={creator.id}
+                          className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300"
+                          style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                          <CardContent className="p-6">
+                            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center text-white">
+                                    {creator.name?.[0]?.toUpperCase() || creator.email[0].toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <h4 className="font-medium">{creator.name || 'Geen naam'}</h4>
+                                    <p className="text-sm text-muted-foreground">{creator.email}</p>
+                                  </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm mt-4">
+                                  <div>
+                                    <span className="text-muted-foreground">Totaal Events:</span><br />
+                                    <span className="font-medium">{creatorEvents.length}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Goedgekeurd:</span><br />
+                                    <span className="font-medium text-green-600">{approvedEvents.length}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">In Afwachting:</span><br />
+                                    <span className="font-medium text-yellow-600">{pendingEventsCount.length}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">Afgewezen:</span><br />
+                                    <span className="font-medium text-red-600">{rejectedEventsCount.length}</span>
+                                  </div>
+                                </div>
+                                
+                                <p className="text-xs text-muted-foreground mt-3">
+                                  Lid sinds: {new Date(creator.createdAt || Date.now()).toLocaleDateString('nl-NL')}
+                                </p>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Used Tickets Tab */}
+          <TabsContent value="used-tickets" className="space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-2xl">Gebruikte Tickets</h2>
+              <Button 
+                onClick={loadUsedTickets}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Eye size={16} />
+                Vernieuw
+              </Button>
+            </div>
+            
+            <div className="grid gap-4">
+              {usedTickets.length === 0 ? (
+                <Card>
+                  <CardContent className="p-12 text-center">
+                    <Ticket size={48} className="mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg mb-2">Geen gebruikte tickets</h3>
+                    <p className="text-muted-foreground">
+                      Er zijn nog geen tickets gescand of gevalideerd.
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                usedTickets.map((ticket, index) => {
+                  const booking = bookings.find(b => b.id === ticket.bookingId);
+                  const event = events.find(e => e.id === booking?.eventId);
+                  return (
+                    <Card 
+                      key={ticket.ticketId}
+                      className="animate-in fade-in-0 slide-in-from-bottom-2 duration-300"
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+                          <div>
+                            <span className="text-muted-foreground text-sm">Event:</span><br />
+                            <span className="font-medium">{event?.title || 'Onbekend event'}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground text-sm">Ticket ID:</span><br />
+                            <span className="font-mono text-sm">{ticket.ticketId}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground text-sm">Ticket Nr:</span><br />
+                            <span className="font-medium">{ticket.ticketNumber} van {ticket.totalTickets}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground text-sm">Klant:</span><br />
+                            <span className="font-medium">{booking?.customerName || 'Onbekend'}</span>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground text-sm">Gebruikt op:</span><br />
+                            <span className="font-medium">{formatDate(ticket.usedAt || ticket.validatedAt)}</span>
+                          </div>
+                          <div className="flex items-center">
+                            <Badge variant="default" className="bg-green-500">
+                              <CheckCircle size={14} className="mr-1" />
+                              Gebruikt
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </TabsContent>
+
+          {/* Statistics Tab */}
+          <TabsContent value="statistics" className="space-y-6">
+            <h2 className="text-2xl">Gedetailleerde Statistieken</h2>
+            
+            <div className="grid gap-6">
+              {/* Total Statistics Card */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 size={20} />
+                    Totaal Overzicht
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <Ticket className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-blue-900">{totalTicketsSold}</p>
+                      <p className="text-sm text-blue-600">Verkochte Tickets</p>
+                    </div>
+                    <div className="text-center p-4 bg-orange-50 rounded-lg">
+                      <CheckCircle className="h-8 w-8 text-orange-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-orange-900">{usedTickets.length}</p>
+                      <p className="text-sm text-orange-600">Gebruikte Tickets</p>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <Euro className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-green-900">€{totalRevenue.toLocaleString()}</p>
+                      <p className="text-sm text-green-600">Totale Omzet</p>
+                    </div>
+                    <div className="text-center p-4 bg-purple-50 rounded-lg">
+                      <Calendar className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-purple-900">{totalEvents}</p>
+                      <p className="text-sm text-purple-600">Totaal Events</p>
+                    </div>
+                    <div className="text-center p-4 bg-indigo-50 rounded-lg">
+                      <Users className="h-8 w-8 text-indigo-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-indigo-900">{bookings.length}</p>
+                      <p className="text-sm text-indigo-600">Totaal Boekingen</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Event Performance */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp size={20} />
+                    Event Prestaties
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {events.map(event => {
+                      const eventBookings = bookings.filter(b => b.eventId === event.id);
+                      const eventTicketsSold = eventBookings.reduce((sum, b) => sum + b.ticketCount, 0);
+                      const eventRevenue = eventBookings.reduce((sum, b) => sum + b.totalPrice, 0);
+                      const occupancyRate = event.totalPlaces > 0 ? (eventTicketsSold / event.totalPlaces) * 100 : 0;
+                      const eventTicketsUsed = statistics?.eventStats[event.id]?.ticketsUsed || 0;
+                      
+                      return (
+                        <div key={event.id} className="p-4 border rounded-lg">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <div className="flex-1">
+                              <h4 className="font-medium">{event.title}</h4>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(event.startDate).toLocaleDateString('nl-NL')} - {event.presenter}
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+                              <div>
+                                <p className="text-lg font-semibold text-blue-600">{eventTicketsSold}</p>
+                                <p className="text-xs text-muted-foreground">Verkocht</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-semibold text-orange-600">{eventTicketsUsed}</p>
+                                <p className="text-xs text-muted-foreground">Gebruikt</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-semibold text-green-600">€{eventRevenue}</p>
+                                <p className="text-xs text-muted-foreground">Omzet</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-semibold text-purple-600">{eventBookings.length}</p>
+                                <p className="text-xs text-muted-foreground">Boekingen</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-semibold text-indigo-600">{Math.round(occupancyRate)}%</p>
+                                <p className="text-xs text-muted-foreground">Bezetting</p>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Progress bar for occupancy */}
+                          <div className="mt-3">
+                            <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div 
+                                className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${Math.min(occupancyRate, 100)}%` }}
+                              ></div>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {eventTicketsSold} van {event.totalPlaces} tickets verkocht • {eventTicketsUsed} gebruikt
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {events.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        Geen events gevonden
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Top Events */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Top Presterende Events</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {events
+                      .map(event => ({
+                        ...event,
+                        ticketsSold: bookings.filter(b => b.eventId === event.id).reduce((sum, b) => sum + b.ticketCount, 0),
+                        revenue: bookings.filter(b => b.eventId === event.id).reduce((sum, b) => sum + b.totalPrice, 0)
+                      }))
+                      .sort((a, b) => b.ticketsSold - a.ticketsSold)
+                      .slice(0, 5)
+                      .map((event, index) => (
+                        <div key={event.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className={`
+                              w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-bold
+                              ${index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-orange-600' : 'bg-blue-500'}
+                            `}>
+                              {index + 1}
+                            </div>
+                            <div>
+                              <p className="font-medium">{event.title}</p>
+                              <p className="text-sm text-muted-foreground">{event.presenter}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">{event.ticketsSold} tickets</p>
+                            <p className="text-sm text-muted-foreground">€{event.revenue}</p>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

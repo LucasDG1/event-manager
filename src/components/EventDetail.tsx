@@ -6,6 +6,7 @@ import { Label } from './ui/label';
 import { Badge } from './ui/badge';
 import { Alert, AlertDescription } from './ui/alert';
 import { EventCard } from './EventCard';
+import { SecurityBadge } from './SecurityBadge';
 import { 
   ArrowLeft, 
   CalendarDays, 
@@ -22,19 +23,20 @@ import {
   CreditCard
 } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
-import type { Event, Booking } from '../types';
+
+import type { Event, Booking, User as UserType } from '../types';
 
 interface EventDetailProps {
   event: Event;
   onBack: () => void;
-  onBooking: (booking: Omit<Booking, 'id' | 'bookingDate'>) => void;
+  onBooking: (booking: Omit<Booking, 'id' | 'bookingDate'>) => Promise<Booking | null>;
+  currentUser?: UserType | null;
 }
 
-export function EventDetail({ event, onBack, onBooking }: EventDetailProps) {
+export function EventDetail({ event, onBack, onBooking, currentUser }: EventDetailProps) {
   const [bookingForm, setBookingForm] = useState({
-    name: '',
-    email: '',
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
     ticketCount: 1
   });
   const [isBooking, setIsBooking] = useState(false);
@@ -85,35 +87,7 @@ export function EventDetail({ event, onBack, onBooking }: EventDetailProps) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const sendBookingEmail = async (bookingId: string) => {
-    try {
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-44b6519c/send-booking-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
-        },
-        body: JSON.stringify({
-          recipientEmail: bookingForm.email,
-          recipientName: bookingForm.name,
-          eventTitle: event.title,
-          eventDate: formatDate(event.startDate),
-          eventTime: `${formatTime(event.startDate)}${event.endDate ? ` - ${formatTime(event.endDate)}` : ''}`,
-          ticketCount: bookingForm.ticketCount,
-          totalPrice: totalPrice.toFixed(2),
-          bookingId: bookingId
-        }),
-      });
 
-      if (response.ok) {
-        console.log('Booking confirmation email sent successfully');
-      } else {
-        console.error('Failed to send booking confirmation email');
-      }
-    } catch (error) {
-      console.error('Error sending booking email:', error);
-    }
-  };
 
   const handleBooking = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,21 +99,14 @@ export function EventDetail({ event, onBack, onBooking }: EventDetailProps) {
     setIsBooking(true);
     
     try {
-      // Simulate booking process
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const bookingId = `BK${Date.now()}`;
-      
-      onBooking({
+      // Call the parent component's booking handler
+      const bookingResult = await onBooking({
         eventId: event.id,
-        name: bookingForm.name,
-        email: bookingForm.email,
+        customerName: bookingForm.name,
+        customerEmail: bookingForm.email,
         ticketCount: bookingForm.ticketCount,
         totalPrice: totalPrice
       });
-
-      // Send confirmation email
-      await sendBookingEmail(bookingId);
 
       toast.success(
         <div>
@@ -485,6 +452,8 @@ export function EventDetail({ event, onBack, onBooking }: EventDetailProps) {
                         </AlertDescription>
                       </Alert>
                     )}
+
+                    <SecurityBadge variant="minimal" className="justify-center" />
                     
                     <Button 
                       type="submit" 

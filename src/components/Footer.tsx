@@ -1,4 +1,4 @@
-import { CalendarDays, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin } from 'lucide-react';
+import { CalendarDays, Mail, Phone, MapPin, Facebook, Twitter, Instagram, Linkedin, Shield } from 'lucide-react';
 
 interface FooterProps {
   onNavigate: (page: 'events' | 'login' | 'about' | 'contact' | 'privacy' | 'terms') => void;
@@ -152,9 +152,15 @@ export function Footer({ onNavigate }: FooterProps) {
 
         <div className="border-t border-gray-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-400 text-sm">
-              © 2025 Event Manager. Alle rechten voorbehouden.
-            </p>
+            <div className="flex flex-col md:flex-row items-center gap-4">
+              <p className="text-gray-400 text-sm">
+                © 2025 Event Manager. Alle rechten voorbehouden.
+              </p>
+              <div className="flex items-center gap-2 text-green-400 text-xs bg-green-400/10 px-3 py-1 rounded-full">
+                <Shield size={14} />
+                <span>Beveiligde Verbinding</span>
+              </div>
+            </div>
             <div className="flex space-x-6 mt-4 md:mt-0">
               <button
                 onClick={() => onNavigate('privacy')}
